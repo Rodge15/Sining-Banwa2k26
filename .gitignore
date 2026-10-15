@@ -1,0 +1,11 @@
+.env
+/storage/logs/*
+!/storage/logs/.gitkeep
+/vendor/
+/uploads/*
+!/uploads/.htaccess
+.idea/
+.vscode/
+*.log
+Thumbs.db
+Desktop.ini

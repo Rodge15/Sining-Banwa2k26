@@ -1,0 +1,11 @@
+{
+    "name": "sining-banwa/event-management-system",
+    "description": "Web-Based Event Management System for Sining Banwa with SMS Notification",
+    "type": "project",
+    "require": {
+        "php": ">=8.0"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
