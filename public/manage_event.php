@@ -36,6 +36,7 @@ $values = [
 $errors = [];
 $posterError = null;
 $generalError = null;
+$createdEventId = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['_csrf'] ?? null)) {
@@ -80,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'status' => $normalizedValues['status'],
                         'created_by' => $user['id'],
                     ]);
+                    $createdEventId = (int) db()->lastInsertId();
                     set_flash('success', 'Event created.');
                 } else {
                     $statement = db()->prepare(
@@ -107,6 +109,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($newPosterFilename !== null && $event !== null) {
                 delete_event_poster((string) $event['poster_filename']);
             }
+            if ($createdEventId !== null) {
+                set_flash('success', 'Event created. You can now design its seat layout and set prices.');
+                redirect('/manage_event.php?id=' . $createdEventId);
+            }
             redirect('/manage_events.php');
         }
     }
@@ -121,6 +127,15 @@ require PROJECT_ROOT . '/app/views/header.php';
         <p class="eyebrow mb-2">Event management</p>
         <h1 class="display-6"><?= e($pageTitle) ?></h1>
     </div>
+    <?php if ($event !== null): ?>
+        <div class="panel d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+            <div>
+                <h2 class="h5 mb-1">Seat layout and pricing</h2>
+                <p class="text-muted mb-0">Create sections, rows, arrange seats, and set section or individual seat prices.</p>
+            </div>
+            <a class="btn btn-outline-primary" href="<?= e(app_url('/manage_seating.php?event_id=' . (int) $event['id'])) ?>">Design seats</a>
+        </div>
+    <?php endif; ?>
     <?php if ($generalError !== null): ?>
         <div class="alert alert-danger" role="alert"><?= e($generalError) ?></div>
     <?php endif; ?>
@@ -163,7 +178,7 @@ require PROJECT_ROOT . '/app/views/header.php';
                 <input class="form-control<?= $posterError !== null ? ' is-invalid' : '' ?>" id="poster" name="poster" type="file" accept="image/jpeg,image/png,image/webp">
                 <?php if ($posterError !== null): ?><div class="invalid-feedback"><?= e($posterError) ?></div><?php endif; ?>
                 <?php if (!empty($event['poster_filename'])): ?>
-                    <a class="small d-inline-block mt-2" href="<?= e(app_url('/event_poster.php?id=' . (int) $event['id'])) ?>">View current poster</a>
+                    <button class="btn btn-link btn-sm px-0 d-block mt-2" type="button" data-poster-open>View current poster</button>
                 <?php endif; ?>
             </div>
         </div>
@@ -172,5 +187,17 @@ require PROJECT_ROOT . '/app/views/header.php';
             <a class="btn btn-outline-secondary" href="<?= e(app_url('/manage_events.php')) ?>">Cancel</a>
         </div>
     </form>
+    <?php if (!empty($event['poster_filename'])): ?>
+        <dialog class="poster-preview-dialog" data-poster-dialog aria-labelledby="poster-preview-title">
+            <div class="poster-preview-header">
+                <h2 class="h5 mb-0" id="poster-preview-title">Current event poster</h2>
+                <button class="btn-close" type="button" data-poster-close aria-label="Close poster preview"></button>
+            </div>
+            <img class="poster-preview-image" src="<?= e(app_url('/event_poster.php?id=' . (int) $event['id'])) ?>" alt="Current poster for <?= e((string) $event['title']) ?>">
+            <div class="text-end mt-3">
+                <button class="btn btn-secondary" type="button" data-poster-close>Close</button>
+            </div>
+        </dialog>
+    <?php endif; ?>
 </section>
 <?php require PROJECT_ROOT . '/app/views/footer.php'; ?>

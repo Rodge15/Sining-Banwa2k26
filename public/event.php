@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/auth.php';
 require_once PROJECT_ROOT . '/app/events.php';
+require_once PROJECT_ROOT . '/app/seating.php';
 
 $eventId = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 if ($eventId === false) {
@@ -19,6 +20,7 @@ if ($event === false) {
     http_response_code(404);
     exit('Event not found.');
 }
+$sections = load_event_seating((int) $eventId);
 
 $pageTitle = (string) $event['title'];
 require PROJECT_ROOT . '/app/views/header.php';
@@ -37,6 +39,58 @@ require PROJECT_ROOT . '/app/views/header.php';
             <p><?= nl2br(e((string) $event['description'])) ?></p>
         <?php endif; ?>
     </div>
+    <?php if ($sections !== []): ?>
+        <section class="event-seating mt-5" aria-labelledby="event-seating-title">
+            <h2 class="h3 mb-2" id="event-seating-title">Seating and prices</h2>
+            <p class="text-muted">Seat availability and prices shown below. Reservations will be available in a later phase.</p>
+            <?php foreach ($sections as $section): ?>
+                <section class="panel mb-4">
+                    <h3 class="h5"><?= e($section['name']) ?></h3>
+                    <?php if ($section['rows'] !== []): ?>
+                        <div class="seat-map-wrap mb-3">
+                            <svg class="seat-map-public" viewBox="0 0 1000 600" role="img" aria-label="Seat layout for <?= e($section['name']) ?>">
+                                <rect x="20" y="40" width="960" height="520" rx="18" class="seat-map-stage"></rect>
+                                <?php foreach ($section['rows'] as $row): ?>
+                                    <?php foreach ($row['seats'] as $seat): ?>
+                                        <?php
+                                        $price = $seat['price_override'] ?? $section['default_price'];
+                                        $status = (string) $seat['status'];
+                                        $seatLabel = $row['label'] . ' ' . $seat['label'];
+                                        $isAvailable = $status === 'available';
+                                        $seatDescription = $seatLabel . ', ' . ($isAvailable ? 'available' : 'unavailable')
+                                            . ', PHP ' . number_format((float) $price, 2);
+                                        ?>
+                                        <g transform="translate(<?= (int) $seat['x'] ?> <?= (int) $seat['y'] ?>)"
+                                           class="seat-map-seat<?= $status !== 'available' ? ' seat-map-seat-blocked' : '' ?>"
+                                           role="img" aria-label="<?= e($seatDescription) ?>">
+                                            <circle r="22"></circle>
+                                            <text text-anchor="middle" dy="5"><?= e(mb_substr((string) $seat['label'], 0, 6)) ?></text>
+                                        </g>
+                                    <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </svg>
+                        </div>
+                    <?php endif; ?>
+                    <?php foreach ($section['rows'] as $row): ?>
+                        <h4 class="h6 mt-3"><?= e($row['label']) ?></h4>
+                        <ul class="list-inline mb-2">
+                            <?php foreach ($row['seats'] as $seat): ?>
+                                <?php
+                                $price = $seat['price_override'] ?? $section['default_price'];
+                                $status = (string) $seat['status'];
+                                ?>
+                                <li class="list-inline-item seat-price-item">
+                                    <span class="badge <?= $status === 'available' ? 'text-bg-success' : 'text-bg-secondary' ?>">
+                                        <?= e((string) $seat['label']) ?> · ₱<?= e(number_format((float) $price, 2)) ?> · <?= e($status === 'available' ? 'Available' : 'Unavailable') ?>
+                                    </span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endforeach; ?>
+                </section>
+            <?php endforeach; ?>
+        </section>
+    <?php endif; ?>
     <a class="btn btn-outline-secondary mt-3" href="<?= e(app_url('/events.php')) ?>">Back to events</a>
 </article>
 <?php require PROJECT_ROOT . '/app/views/footer.php'; ?>

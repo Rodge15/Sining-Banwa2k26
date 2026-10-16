@@ -49,7 +49,7 @@ This document divides the project into manageable development phases for a **new
 
 This scope is implemented as part of Phase 2 to align with the project specification. Refer to Phase 2 for the event schema, management workflows, public visibility rules, and acceptance checks. No duplicate event-management implementation is planned here.
 
-## Phase 5: Visual Seat Layout Designer
+## Phase 5: Visual Seat Layout Designer (Phase 3 in Project Specification)
 **Goal:** Let management design seating for each event.
 
 - Create and manage seating sections and rows.
@@ -60,6 +60,8 @@ This scope is implemented as part of Phase 2 to align with the project specifica
 - Provide a preview of the layout before bookings are accepted.
 - Display the saved layout consistently to management and customers.
 - Prevent changes that would damage existing confirmed bookings.
+- Add event-specific sections, rows, and seats with a unique seat label per event, a saved visual position, and an available/blocked state. The event-management user interface must expose section default prices and optional per-seat price overrides.
+- Provide an accessible close control when previewing an event poster so users can return to event editing without navigating away.
 
 **Completion check:** Management can save a layout with different seat prices, reopen it, and see the same layout and pricing.
 

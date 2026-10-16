@@ -185,3 +185,106 @@ a.event-card {
     max-width: 850px;
     overflow-wrap: anywhere;
 }
+
+.seat-map-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border: 1px solid var(--line);
+    border-radius: .75rem;
+    background: #fbfcfd;
+}
+
+.seat-map-wrap svg {
+    display: block;
+    width: 100%;
+    min-width: 520px;
+    touch-action: none;
+}
+
+.seat-map-stage {
+    fill: #f5f1eb;
+    stroke: #ded4cc;
+}
+
+.seat-map-seat {
+    cursor: grab;
+    outline: none;
+}
+
+.seat-map-seat:active {
+    cursor: grabbing;
+}
+
+.seat-map-seat circle {
+    fill: #e0f2e9;
+    stroke: #33805a;
+    stroke-width: 3;
+}
+
+.seat-map-seat text {
+    fill: #173f2d;
+    font-size: 13px;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.seat-map-seat-blocked circle {
+    fill: #e2e3e5;
+    stroke: #777b80;
+}
+
+.seat-map-seat-blocked text {
+    fill: #383b3e;
+}
+
+.seat-map-seat-selected circle,
+.seat-map-seat:focus circle {
+    stroke: var(--wine);
+    stroke-width: 6;
+}
+
+.seat-map-public .seat-map-seat {
+    cursor: default;
+}
+
+.seat-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    align-items: end;
+    gap: 1rem;
+}
+
+.seat-price-item {
+    margin-bottom: .45rem;
+}
+
+.poster-preview-dialog {
+    width: min(100% - 2rem, 900px);
+    max-width: 900px;
+    max-height: min(92vh, 1000px);
+    padding: 1rem;
+    overflow: auto;
+    border: 0;
+    border-radius: 1rem;
+    box-shadow: 0 1rem 3rem rgb(0 0 0 / 30%);
+}
+
+.poster-preview-dialog::backdrop {
+    background: rgb(25 20 20 / 72%);
+}
+
+.poster-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.poster-preview-image {
+    display: block;
+    max-width: 100%;
+    max-height: 72vh;
+    margin-inline: auto;
+    object-fit: contain;
+}
