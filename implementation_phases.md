@@ -20,20 +20,20 @@ This document divides the project into manageable development phases for a **new
 
 **Completion check:** The project runs locally, connects to the database, shows a styled home page, and is committed to Git.
 
-## Phase 2: Database Design and Migration
-**Goal:** Create the database for the complete system.
+## Phase 2: Event Database and Management
+**Goal:** Let authorized staff manage Sining Banwa events and let the public browse published events.
 
-- Design and create tables for `users`, `events`, `event_sections`, `event_seats`, `reservations`, `reservation_items`, `payments`, `tickets`, `attendance`, `evaluations`, `production_expenses`, and `notifications`.
-- Support multiple seats per reservation.
-- Store the actual price paid for each reserved seat so later price changes do not alter old bookings.
-- Store the booking source (`online` or `admin`) and the staff member who created an admin booking.
-- Add suitable primary keys, foreign keys, unique constraints, and indexes (for example, a unique seat label per event and a unique ticket code).
-- Keep every change as a numbered, repeatable migration SQL file in `database/migrations/`.
-- Create a seed file with sample data (an admin account, a staff account, a venue account, and a sample customer) for testing and the demo.
+- Add a numbered, additive migration for event records, including title, description, venue, Philippine-local start date/time, optional poster filename, status, creator, and timestamps.
+- Support `draft`, `published`, `completed`, and `cancelled` statuses. Only published events appear in public listings and details; retain records by changing status instead of hard-deleting.
+- Allow administrator and staff accounts to create, edit, publish, complete, and cancel events. Customer and venue roles must not manage events.
+- Validate event fields server-side and use prepared statements, CSRF checks, and escaped output.
+- Support optional JPG, PNG, or WebP posters up to 5 MiB, stored outside the public web root under generated filenames. Serve posters through an endpoint that checks publication state or event-manager authorization.
+- Add public event listing and detail pages and link them from the homepage and navigation.
+- Keep seat layouts, reservations, manual bookings, payments, tickets, notifications, attendance, expenses, reports, and evaluations for their later phases.
 
-**Completion check:** All tables and relationships are verified in phpMyAdmin, migrations run cleanly on an empty database, and seed data loads correctly.
+**Completion check:** The migration applies without altering existing account data; admin/staff can manage events; only published events and their posters are public; invalid uploads and unauthorized requests are rejected.
 
-## Phase 3: User Accounts and Access Control
+## Phase 3: User Accounts and Access Control (Foundation Delivered in Phase 1)
 **Goal:** Make sure each user can access only the pages and actions allowed for their role.
 
 - Support customer, administrator/staff, and venue personnel roles.
@@ -43,19 +43,11 @@ This document divides the project into manageable development phases for a **new
 - Protect restricted pages and validate permissions on the server using one central role-check function.
 - Add logout and basic profile management.
 
-**Completion check:** Each role can log in and is prevented from accessing unauthorized pages or actions.
+**Completion check:** The login, account-status, and role-check foundation is delivered in Phase 1; new restricted workflows must continue to enforce it server-side.
 
-## Phase 4: Event Management and Public Event Pages
-**Goal:** Allow staff to manage Sining Banwa events and let the public view them.
+## Phase 4: Event Management and Public Event Pages (Delivered in Phase 2)
 
-- Create, view, edit, publish, unpublish, complete, and cancel events.
-- Store the event title, description, poster, date, time, venue, status, and creator.
-- Validate required fields, poster file type and size, and event dates.
-- Show the public homepage, event listings, and event details for published events only.
-- Optionally record event listing views.
-- Make sure cancelling or archiving an event does not delete historical records.
-
-**Completion check:** Staff can manage events and audiences can view only published events.
+This scope is implemented as part of Phase 2 to align with the project specification. Refer to Phase 2 for the event schema, management workflows, public visibility rules, and acceptance checks. No duplicate event-management implementation is planned here.
 
 ## Phase 5: Visual Seat Layout Designer
 **Goal:** Let management design seating for each event.

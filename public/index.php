@@ -20,6 +20,7 @@ require PROJECT_ROOT . '/app/views/header.php';
     </div>
 </section>
 <section class="container content-section">
+    <div class="text-center mb-5"><a class="btn btn-outline-primary btn-lg" href="<?= e(app_url('/events.php')) ?>">Browse events</a></div>
     <div class="row g-4">
         <div class="col-md-4">
             <article class="feature-card">
@@ -38,8 +39,8 @@ require PROJECT_ROOT . '/app/views/header.php';
         <div class="col-md-4">
             <article class="feature-card">
                 <p class="eyebrow">Current phase</p>
-                <h2>Accounts and access</h2>
-                <p class="mb-0">Customer sign-up and role-based account access are available in this foundation.</p>
+                <h2>Events and community</h2>
+                <p class="mb-0">Browse published performances and activities from Sining Banwa.</p>
             </article>
         </div>
     </div>

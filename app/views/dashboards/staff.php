@@ -1,9 +1,9 @@
 <section class="dashboard-welcome">
     <p class="eyebrow">Staff dashboard</p>
     <h1 class="display-6">Welcome, <?= e($user['name']) ?></h1>
-    <p class="lead">Your staff account is signed in. Staff workflows will be added in later development phases.</p>
+    <p class="lead">Create and manage Sining Banwa events, including their publication status and public details.</p>
 </section>
 <section class="panel">
-    <h2 class="h5">Phase 1 foundation</h2>
-    <p class="mb-0">This dashboard confirms your staff role. Event and booking tools are not part of this setup phase.</p>
+    <h2 class="h5">Event management</h2>
+    <p class="mb-0">Create, edit, publish, complete, or cancel events. Booking tools will be added in later phases. <a href="<?= e(app_url('/manage_events.php')) ?>">Open event management</a>.</p>
 </section>

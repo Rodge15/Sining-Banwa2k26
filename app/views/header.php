@@ -24,11 +24,16 @@ $navUser = current_user();
                 <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
                     <?php if ($navUser !== null): ?>
                         <a class="nav-link" href="<?= e(app_url('/dashboard.php')) ?>">Dashboard</a>
+                        <a class="nav-link" href="<?= e(app_url('/events.php')) ?>">Events</a>
+                        <?php if (in_array($navUser['role'], ['admin', 'staff'], true)): ?>
+                            <a class="nav-link" href="<?= e(app_url('/manage_events.php')) ?>">Manage events</a>
+                        <?php endif; ?>
                         <form method="post" action="<?= e(app_url('/logout.php')) ?>" class="d-inline">
                             <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                             <button class="btn btn-outline-light btn-sm" type="submit">Log out</button>
                         </form>
                     <?php else: ?>
+                        <a class="nav-link" href="<?= e(app_url('/events.php')) ?>">Events</a>
                         <a class="nav-link" href="<?= e(app_url('/login.php')) ?>">Log in</a>
                         <a class="btn btn-light btn-sm" href="<?= e(app_url('/register.php')) ?>">Create account</a>
                     <?php endif; ?>
