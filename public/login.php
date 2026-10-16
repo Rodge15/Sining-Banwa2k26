@@ -58,7 +58,8 @@ require PROJECT_ROOT . '/app/views/header.php';
             </div>
             <button class="btn btn-primary w-100" type="submit">Log in</button>
         </form>
-        <p class="text-center mt-4 mb-0">Need a customer account? <a href="<?= e(app_url('/register.php')) ?>">Register</a></p>
+        <p class="text-center mt-3 mb-0"><a href="<?= e(app_url('/forgot_password.php')) ?>">Forgot your password?</a></p>
+        <p class="text-center mt-3 mb-0">Need a customer account? <a href="<?= e(app_url('/register.php')) ?>">Register</a></p>
     </div>
 </section>
 <?php require PROJECT_ROOT . '/app/views/footer.php'; ?>

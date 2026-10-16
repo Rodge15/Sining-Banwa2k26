@@ -6,7 +6,7 @@ A responsive starting point for the **Web-Based Event Management System for Sini
 
 This project currently provides a public homepage, customer registration, login/logout, and role-specific account dashboards for customers, administrators, staff, and venue personnel. Registration is limited to the customer role; privileged accounts must be provisioned separately.
 
-Other features (events, seating, reservations, payments, tickets, SMS/email, attendance, reports, expenses, and evaluations) are not implemented in this phase. Authentication requires a `users` table, so this phase includes only the minimal account migration at `database/migrations/001_create_users.sql`. Phase 2 will add the remaining schema.
+Other features (events, seating, reservations, payments, tickets, SMS/email, attendance, reports, expenses, and evaluations) are not implemented in this phase. Authentication requires a `users` table, and password recovery uses the separate `database/migrations/002_create_password_reset_tokens.sql` migration. Phase 2 will add the remaining event-management schema.
 
 ## Technology
 
@@ -64,8 +64,14 @@ After the database exists:
 3. Paste and run the contents of `database/migrations/001_create_users.sql`.
 4. Confirm that the `users` table appears.
 
-This is the only table in this phase. No event, reservation, or other application tables or sample accounts are created.
+These are the account and password-reset tables for this phase. No event, reservation, or sample account records are created.
 
+
+### Enable password recovery
+
+After creating the `users` table, run `database/migrations/002_create_password_reset_tokens.sql` in the same database. Copy `.env.example` to `.env` if you have not already, then set `APP_URL` to the full URL of this app (for example `http://localhost/Sining%20Banwa/public`) and set `MAIL_FROM_EMAIL` to a valid sender address. The recovery form sends a one-hour, single-use link using PHP `mail()`; the token itself is not stored in the database.
+
+PHP mail delivery is not configured by default in XAMPP. Configure the mail transport in XAMPP PHP/sendmail settings with your email provider, then restart Apache and test delivery. Do not put mail-provider passwords in source files or share them in chat. On a production site, use HTTPS and configure `APP_URL` with the real HTTPS address. If mail cannot be sent, the application log records the failure without revealing whether an account exists.
 ## 3. Configure local settings
 
 1. In the project folder, copy `.env.example` to a new file named `.env`.
@@ -131,10 +137,10 @@ To test authentication:
 
 1. Open **Create a customer account**, register a test customer, then sign in.
 2. Confirm that the customer dashboard opens; submit an incorrect password and confirm it is rejected.
-3. Provision an admin, staff, and/or venue account with the command-line tool and sign in to each to see the corresponding dashboard.
-4. Submit `GET /logout.php` directly and confirm it does not log out (logout requires a CSRF-protected POST); then use the **Log out** button and confirm the session ends.
-5. Confirm that customer registration has no role selector and that dashboard access requires sign-in.
-
+3. After configuring PHP mail delivery, request a reset link for an active test account, set a new password, and verify the link cannot be reused.
+4. Provision an admin, staff, and/or venue account with the command-line tool and sign in to each to see the corresponding dashboard.
+5. Submit `GET /logout.php` directly and confirm it does not log out (logout requires a CSRF-protected POST); then use the **Log out** button and confirm the session ends.
+6. Confirm that customer registration has no role selector and that dashboard access requires sign-in.
 ## Web access protection
 
 Only `public/` is intended to be served. The project-root `.htaccess` denies web access by default, while `public/.htaccess` permits the public application pages. Separate rules deny access to `app/`, `config/`, `database/`, `storage/`, and `uploads/`; directory listings are disabled.
