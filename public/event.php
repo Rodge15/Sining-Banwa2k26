@@ -39,10 +39,21 @@ require PROJECT_ROOT . '/app/views/header.php';
             <p><?= nl2br(e((string) $event['description'])) ?></p>
         <?php endif; ?>
     </div>
+    <aside class="panel mt-4">
+        <h2 class="h5">Customer account</h2>
+        <?php if (current_user() === null): ?>
+            <p>Create a free customer account to manage your details. Online seat reservation is not open yet.</p>
+            <a class="btn btn-primary" href="<?= e(app_url('/register.php')) ?>">Create account</a>
+            <a class="btn btn-outline-primary" href="<?= e(app_url('/login.php')) ?>">Log in</a>
+        <?php else: ?>
+            <p class="mb-3">You are signed in as <?= e(current_user()['name']) ?>. Online seat reservation is not open yet.</p>
+            <a class="btn btn-outline-primary" href="<?= e(app_url('/profile.php')) ?>">Manage profile</a>
+        <?php endif; ?>
+    </aside>
     <?php if ($sections !== []): ?>
         <section class="event-seating mt-5" aria-labelledby="event-seating-title">
             <h2 class="h3 mb-2" id="event-seating-title">Seating and prices</h2>
-            <p class="text-muted">Seat availability and prices shown below. Reservations will be available in a later phase.</p>
+            <p class="text-muted">Seat availability and prices are shown below. Selecting a seat does not reserve it.</p>
             <?php foreach ($sections as $section): ?>
                 <section class="panel mb-4">
                     <h3 class="h5"><?= e($section['name']) ?></h3>

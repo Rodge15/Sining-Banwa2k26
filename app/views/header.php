@@ -25,6 +25,7 @@ $navUser = current_user();
                     <?php if ($navUser !== null): ?>
                         <a class="nav-link" href="<?= e(app_url('/dashboard.php')) ?>">Dashboard</a>
                         <a class="nav-link" href="<?= e(app_url('/events.php')) ?>">Events</a>
+                        <a class="nav-link" href="<?= e(app_url('/profile.php')) ?>">Profile</a>
                         <?php if (in_array($navUser['role'], ['admin', 'staff'], true)): ?>
                             <a class="nav-link" href="<?= e(app_url('/manage_events.php')) ?>">Manage events</a>
                         <?php endif; ?>

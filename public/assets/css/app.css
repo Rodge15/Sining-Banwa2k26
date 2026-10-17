@@ -154,9 +154,14 @@ body {
     }
 }
 
+.event-card,
 a.event-card {
     display: flex;
     flex-direction: column;
+}
+
+.content-section .auth-card {
+    width: min(100%, 520px);
 }
 
 .event-poster-preview {

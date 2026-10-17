@@ -6,7 +6,7 @@ A responsive starting point for the **Web-Based Event Management System for Sini
 
 The Phase 1 foundation provides a public homepage, customer registration, login/logout, password recovery, and role-specific dashboards for customers, administrators, staff, and venue personnel. Registration is limited to the customer role; privileged accounts are provisioned separately.
 
-Phase 2 adds event creation and management for administrators and staff, optional private poster uploads, and public listings/details for published events. The Phase 3 seat designer adds event-specific sections, rows, draggable seats, availability, and pricing. Reservations, payments, tickets, SMS/email notifications, attendance, reports, expenses, and evaluations remain for later phases.
+Phase 2 adds event creation and management for administrators and staff, optional private poster uploads, and public listings/details for published events. The Phase 3 seat designer adds event-specific sections, rows, draggable seats, availability, and pricing. Phase 4 presents those published events on the public homepage and adds profile management for signed-in users. Reservations, payments, tickets, SMS/email notifications, attendance, reports, expenses, and evaluations remain for later phases.
 
 ## Technology
 
@@ -165,6 +165,15 @@ To test authentication:
 1. Apply `database/migrations/004_create_event_seating.sql` after migration `003_create_events.sql`.
 2. On an existing event, open **Design seats**, add a priced section, rows, and seats, drag seats, set one seat override, block a seat, save, and reload. Confirm all positions and prices persist and are visible on the published event detail.
 3. On an event edit page with a poster, choose **View current poster**. Confirm the dialog has both a close icon and a Close button, and also closes with Escape.
+
+### Test Phase 4 public website and customer accounts
+
+No new database migration is required. The profile page uses the existing `users` table.
+
+1. Open the homepage while signed out. Confirm published events appear there and on **Events**, and that draft events do not.
+2. Create or sign in to a customer account, open **Profile**, change the name or phone number, and save. Confirm the dashboard shows the new details.
+3. Change the password with the wrong current password and confirm it is rejected. Then change it with the correct current password, log out, and sign in with the new password.
+4. Confirm the profile form does not let you edit the email address or role.
 
 ## Web access protection
 

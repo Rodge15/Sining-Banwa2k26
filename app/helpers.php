@@ -6,6 +6,16 @@ function e(string $value): string
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function role_label(string $role): string
+{
+    return match ($role) {
+        'admin' => 'Administrator',
+        'staff' => 'Staff',
+        'venue' => 'Venue personnel',
+        default => 'Customer',
+    };
+}
+
 function app_url(string $path = ''): string
 {
     return rtrim(BASE_URL, '/') . ($path === '' ? '' : '/' . ltrim($path, '/'));

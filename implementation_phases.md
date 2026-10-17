@@ -45,9 +45,17 @@ This document divides the project into manageable development phases for a **new
 
 **Completion check:** The login, account-status, and role-check foundation is delivered in Phase 1; new restricted workflows must continue to enforce it server-side.
 
-## Phase 4: Event Management and Public Event Pages (Delivered in Phase 2)
+## Phase 4: Public Website and Customer Accounts (Project Specification)
 
-This scope is implemented as part of Phase 2 to align with the project specification. Refer to Phase 2 for the event schema, management workflows, public visibility rules, and acceptance checks. No duplicate event-management implementation is planned here.
+**Goal:** Present published events to the public and let signed-in users manage their own account details.
+
+- Show published events on the homepage and keep the public event listing and detail pages.
+- Let every signed-in user update their own name and optional phone number, and change their password only after the current password is verified.
+- Keep email and role read-only on the profile page so customers cannot change their access level.
+- Update the customer dashboard so it links to published events and profile management.
+- Do not add reservations, payments, tickets, or notifications in this phase.
+
+**Completion check:** A guest can browse published events from the homepage. A signed-in customer can update their profile, and an incorrect current password does not change the password. No new database migration is required.
 
 ## Phase 5: Visual Seat Layout Designer (Phase 3 in Project Specification)
 **Goal:** Let management design seating for each event.

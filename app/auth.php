@@ -18,7 +18,7 @@ function current_user(): ?array
     }
 
     $statement = db()->prepare(
-        'SELECT id, name, email, role, is_active FROM users WHERE id = :id LIMIT 1'
+        'SELECT id, name, email, phone, role, is_active FROM users WHERE id = :id LIMIT 1'
     );
     $statement->execute(['id' => (int) $userId]);
     $record = $statement->fetch();
@@ -31,6 +31,7 @@ function current_user(): ?array
         'id' => (int) $record['id'],
         'name' => (string) $record['name'],
         'email' => (string) $record['email'],
+        'phone' => $record['phone'] === null ? '' : (string) $record['phone'],
         'role' => (string) $record['role'],
     ];
 

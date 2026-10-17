@@ -14,6 +14,17 @@ function format_event_date(string $dateTime): string
     return (new DateTimeImmutable($dateTime, new DateTimeZone('Asia/Manila')))->format('M j, Y g:i A');
 }
 
+function list_published_events(int $limit = 0): array
+{
+    $sql = "SELECT id, title, description, venue, starts_at, poster_filename FROM events "
+        . "WHERE status = 'published' ORDER BY starts_at ASC, id ASC";
+    if ($limit > 0) {
+        $sql .= ' LIMIT ' . $limit;
+    }
+
+    return db()->query($sql)->fetchAll();
+}
+
 function validate_event_fields(array $input): array
 {
     $title = trim((string) ($input['title'] ?? ''));
