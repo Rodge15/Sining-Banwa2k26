@@ -45,7 +45,7 @@ require PROJECT_ROOT . '/app/views/header.php';
                                 <strong><?= e((string) $event['title']) ?></strong>
                                 <div class="text-muted small"><?= e((string) $event['venue']) ?></div>
                                 <?php if ($event['poster_filename'] !== null): ?>
-                                    <a class="small" href="<?= e(app_url('/event_poster.php?id=' . (int) $event['id'])) ?>">Preview poster</a>
+                                    <a class="small" href="<?= e(app_url('/view_event_poster.php?id=' . (int) $event['id'] . '&return=' . rawurlencode('/manage_events.php'))) ?>" data-poster-open data-poster-src="<?= e(app_url('/event_poster.php?id=' . (int) $event['id'])) ?>" data-poster-title="<?= e((string) $event['title']) ?>">Preview poster</a>
                                 <?php endif; ?>
                             </td>
                             <td><?= e(format_event_date((string) $event['starts_at'])) ?></td>

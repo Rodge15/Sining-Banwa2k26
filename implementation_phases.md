@@ -61,15 +61,16 @@ This document divides the project into manageable development phases for a **new
 **Goal:** Let management design seating for each event.
 
 - Create and manage seating sections and rows.
-- Add, rename, move (drag and drop), and remove seats in the layout using SVG, Canvas, or Konva.js.
-- Save each seat's label and visual position in the database.
+- Add, rename, and remove seats by clicking boxes in a row-and-column grid instead of placing each seat by hand.
+- Save each seat's label and box position in the database.
 - Set a default price for each section and allow individual seat price overrides.
 - Mark seats as available, blocked, reserved, or sold as appropriate.
 - Provide a preview of the layout before bookings are accepted.
 - Display the saved layout consistently to management and customers.
 - Prevent changes that would damage existing confirmed bookings.
 - Add event-specific sections, rows, and seats with a unique seat label per event, a saved visual position, and an available/blocked state. The event-management user interface must expose section default prices and optional per-seat price overrides.
-- Provide an accessible close control when previewing an event poster so users can return to event editing without navigating away.
+- Color each seat box by payment status: available, awaiting payment, paid, on hold, or blocked.
+- Provide an accessible X close control and a Back option when previewing an event poster so users can return without getting stuck on the image.
 
 **Completion check:** Management can save a layout with different seat prices, reopen it, and see the same layout and pricing.
 

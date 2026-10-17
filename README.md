@@ -81,7 +81,11 @@ After applying migrations `001_create_users.sql` and `002_create_password_reset_
 
 After running migrations `001_create_users.sql`, `002_create_password_reset_tokens.sql`, and `003_create_events.sql` in order, run `database/migrations/004_create_event_seating.sql` in phpMyAdmin. The migration adds event sections, rows, and seats, including visual coordinates, availability, section default prices, and optional per-seat price overrides. It does not change existing event or account records.
 
-To design a layout, sign in as an admin or staff member, open **Manage events**, edit an existing event, and choose **Design seats**. Add a section, set its default PHP price, add rows and seats, drag seats to arrange the map, select seats to add an optional price override or block/unblock them, then click **Save seat layout**. Published event details show the layout and seat prices; booking and seat locking will be added in later phases.
+After the seating tables exist, run `database/migrations/005_add_section_grid_size.sql` in the same database. It adds optional box-grid size columns and does not change existing seats.
+
+To design a layout, sign in as an admin or staff member, open **Manage events**, edit an existing event, and choose **Design seats**. Add a section, set its default PHP price, choose how many rows and columns to show, then click boxes to place seats. Empty boxes stay unused. Select a seat to add an optional price override or block it, then click **Save seat layout**. Box colors distinguish available, awaiting payment, paid, on hold, and blocked seats. Published event details show the same box layout and prices; booking and seat locking will be added in later phases.
+
+Poster previews open with an X button and a Back option so the image does not replace the page without a way to return.
 
 ## 3. Configure local settings
 

@@ -4,11 +4,216 @@ declare(strict_types=1);
 const SEATING_MAX_SECTIONS = 20;
 const SEATING_MAX_ROWS = 100;
 const SEATING_MAX_SEATS = 1000;
+const SEATING_MAX_GRID_COLUMNS = 40;
+const SEATING_MAX_GRID_ROWS = 30;
+
+function event_sections_have_grid_size(): bool
+{
+    static $hasGridSize = null;
+    if ($hasGridSize === null) {
+        $statement = db()->query("SHOW COLUMNS FROM `event_sections` LIKE 'grid_columns'");
+        $hasGridSize = $statement->fetch() !== false;
+    }
+
+    return $hasGridSize;
+}
+
+function seat_status_meta(string $status): array
+{
+    return match ($status) {
+        'available' => ['label' => 'Available', 'short' => 'Open', 'payment' => 'No payment yet', 'class' => 'seat-box-available'],
+        'locked' => ['label' => 'On hold', 'short' => 'Hold', 'payment' => 'Temporarily held', 'class' => 'seat-box-locked'],
+        'reserved' => ['label' => 'Awaiting payment', 'short' => 'Due', 'payment' => 'Reserved, payment not verified', 'class' => 'seat-box-reserved'],
+        'sold' => ['label' => 'Paid', 'short' => 'Paid', 'payment' => 'Payment recorded', 'class' => 'seat-box-sold'],
+        'blocked' => ['label' => 'Blocked', 'short' => 'Off', 'payment' => 'Not for sale', 'class' => 'seat-box-blocked'],
+        default => ['label' => 'Unavailable', 'short' => 'Off', 'payment' => 'Unavailable', 'class' => 'seat-box-blocked'],
+    };
+}
+
+function seating_row_letter(int $rowNumber): string
+{
+    $label = '';
+    $number = max(1, $rowNumber);
+    while ($number > 0) {
+        $number--;
+        $label = chr(65 + ($number % 26)) . $label;
+        $number = intdiv($number, 26);
+    }
+
+    return $label;
+}
+
+function seating_cluster_values(array $values, int $tolerance): array
+{
+    $values = array_map(static fn (mixed $value): int => (int) $value, $values);
+    sort($values);
+    $clusters = [];
+    foreach ($values as $value) {
+        $last = count($clusters) - 1;
+        if ($last < 0 || $value - $clusters[$last]['end'] > $tolerance) {
+            $clusters[] = ['start' => $value, 'end' => $value];
+            continue;
+        }
+        $clusters[$last]['end'] = $value;
+    }
+
+    return $clusters;
+}
+
+function seating_cluster_index(array $clusters, int $value): int
+{
+    foreach ($clusters as $index => $cluster) {
+        if ($value >= $cluster['start'] && $value <= $cluster['end']) {
+            return $index;
+        }
+    }
+
+    $best = 0;
+    $bestDistance = PHP_INT_MAX;
+    foreach ($clusters as $index => $cluster) {
+        $distance = min(abs($value - $cluster['start']), abs($value - $cluster['end']));
+        if ($distance < $bestDistance) {
+            $bestDistance = $distance;
+            $best = $index;
+        }
+    }
+
+    return $best;
+}
+
+function seating_assign_grid_cells(array $sections): array
+{
+    foreach ($sections as &$section) {
+        $flat = [];
+        foreach ($section['rows'] as $rowIndex => $row) {
+            foreach ($row['seats'] as $seatIndex => $seat) {
+                $flat[] = [
+                    'row_index' => $rowIndex,
+                    'seat_index' => $seatIndex,
+                    'x' => (int) $seat['x'],
+                    'y' => (int) $seat['y'],
+                ];
+            }
+        }
+
+        $legacySeats = [];
+        $gridSeats = [];
+        foreach ($flat as $seat) {
+            $isGridPosition = $seat['x'] >= 1
+                && $seat['y'] >= 1
+                && $seat['x'] <= SEATING_MAX_GRID_COLUMNS
+                && $seat['y'] <= SEATING_MAX_GRID_ROWS;
+            if ($isGridPosition) {
+                $gridSeats[] = $seat;
+                continue;
+            }
+            $legacySeats[] = $seat;
+        }
+
+        $occupied = [];
+        $maxColumn = 0;
+        $maxRow = 0;
+        foreach ($gridSeats as $seat) {
+            $displayColumn = $seat['x'];
+            $displayRow = $seat['y'];
+            $occupied[$displayRow . ':' . $displayColumn] = true;
+            $section['rows'][$seat['row_index']]['seats'][$seat['seat_index']]['column'] = $displayColumn;
+            $section['rows'][$seat['row_index']]['seats'][$seat['seat_index']]['row'] = $displayRow;
+            $maxColumn = max($maxColumn, $displayColumn);
+            $maxRow = max($maxRow, $displayRow);
+        }
+        if ($legacySeats !== []) {
+            $rowClusters = seating_cluster_values(array_column($legacySeats, 'y'), 40);
+            $columnClusters = seating_cluster_values(array_column($legacySeats, 'x'), 36);
+            foreach ($legacySeats as $seat) {
+                $displayRow = seating_cluster_index($rowClusters, $seat['y']) + 1;
+                $displayColumn = seating_cluster_index($columnClusters, $seat['x']) + 1;
+                while (isset($occupied[$displayRow . ':' . $displayColumn])) {
+                    $displayColumn++;
+                }
+                if ($displayColumn > SEATING_MAX_GRID_COLUMNS || $displayRow > SEATING_MAX_GRID_ROWS) {
+                    continue;
+                }
+                $occupied[$displayRow . ':' . $displayColumn] = true;
+                $section['rows'][$seat['row_index']]['seats'][$seat['seat_index']]['column'] = $displayColumn;
+                $section['rows'][$seat['row_index']]['seats'][$seat['seat_index']]['row'] = $displayRow;
+                $maxColumn = max($maxColumn, $displayColumn);
+                $maxRow = max($maxRow, $displayRow);
+            }
+        }
+
+        $storedColumns = isset($section['grid_columns']) && $section['grid_columns'] !== null && $section['grid_columns'] !== ''
+            ? (int) $section['grid_columns']
+            : 0;
+        $storedRows = isset($section['grid_rows']) && $section['grid_rows'] !== null && $section['grid_rows'] !== ''
+            ? (int) $section['grid_rows']
+            : 0;
+        if ($flat === [] && $storedColumns === 0 && $storedRows === 0) {
+            $section['grid_columns'] = 12;
+            $section['grid_rows'] = 8;
+            continue;
+        }
+
+        $section['grid_columns'] = min(SEATING_MAX_GRID_COLUMNS, max($storedColumns, $maxColumn, 1));
+        $section['grid_rows'] = min(SEATING_MAX_GRID_ROWS, max($storedRows, $maxRow, 1));
+    }
+    unset($section);
+
+    return $sections;
+}
+
+function seating_box_layout(array $section): array
+{
+    $columns = min(SEATING_MAX_GRID_COLUMNS, max(1, (int) ($section['grid_columns'] ?? 1)));
+    $rowCount = min(SEATING_MAX_GRID_ROWS, max(1, (int) ($section['grid_rows'] ?? 1)));
+    $cells = [];
+    $rowLabels = [];
+    $hasSeats = false;
+    foreach ($section['rows'] as $row) {
+        foreach ($row['seats'] as $seat) {
+            $displayRow = (int) ($seat['row'] ?? $seat['y']);
+            $displayColumn = (int) ($seat['column'] ?? $seat['x']);
+            if (
+                $displayRow < 1
+                || $displayColumn < 1
+                || $displayRow > SEATING_MAX_GRID_ROWS
+                || $displayColumn > SEATING_MAX_GRID_COLUMNS
+            ) {
+                continue;
+            }
+            $hasSeats = true;
+            $rowCount = max($rowCount, $displayRow);
+            $columns = max($columns, $displayColumn);
+            $cells[$displayRow][$displayColumn] = $seat;
+            $rowLabels[$displayRow] ??= (string) $row['label'];
+        }
+    }
+
+    $gridRows = [];
+    for ($rowIndex = 1; $rowIndex <= $rowCount; $rowIndex++) {
+        $rowCells = [];
+        for ($columnIndex = 1; $columnIndex <= $columns; $columnIndex++) {
+            $rowCells[] = $cells[$rowIndex][$columnIndex] ?? null;
+        }
+        $gridRows[] = [
+            'number' => $rowIndex,
+            'label' => $rowLabels[$rowIndex] ?? seating_row_letter($rowIndex),
+            'cells' => $rowCells,
+        ];
+    }
+
+    return [
+        'columns' => $columns,
+        'rows' => $gridRows,
+        'has_seats' => $hasSeats,
+    ];
+}
 
 function load_event_seating(int $eventId): array
 {
+    $gridColumns = event_sections_have_grid_size() ? ', grid_columns, grid_rows' : '';
     $sectionStatement = db()->prepare(
-        'SELECT id, name, default_price, sort_order FROM event_sections WHERE event_id = :event_id '
+        'SELECT id, name, default_price, sort_order' . $gridColumns . ' FROM event_sections WHERE event_id = :event_id '
         . 'ORDER BY sort_order, id'
     );
     $sectionStatement->execute(['event_id' => $eventId]);
@@ -19,6 +224,12 @@ function load_event_seating(int $eventId): array
             'id' => $sectionId,
             'name' => (string) $section['name'],
             'default_price' => (string) $section['default_price'],
+            'grid_columns' => isset($section['grid_columns']) && $section['grid_columns'] !== null
+                ? (int) $section['grid_columns']
+                : null,
+            'grid_rows' => isset($section['grid_rows']) && $section['grid_rows'] !== null
+                ? (int) $section['grid_rows']
+                : null,
             'rows' => [],
         ];
     }
@@ -50,7 +261,7 @@ function load_event_seating(int $eventId): array
     }
 
     if ($rowMap === []) {
-        return array_values($sections);
+        return seating_assign_grid_cells(array_values($sections));
     }
 
     $rowIds = array_keys($rowMap);
@@ -73,7 +284,7 @@ function load_event_seating(int $eventId): array
         ];
     }
 
-    return array_values($sections);
+    return seating_assign_grid_cells(array_values($sections));
 }
 
 function validate_seating_payload(array $sections): array
@@ -101,6 +312,8 @@ function validate_seating_payload(array $sections): array
             throw new InvalidArgumentException('Section names must be unique within the event.');
         }
         $sectionNames[$sectionKey] = true;
+        $gridColumns = validate_grid_count($section['grid_columns'] ?? null, SEATING_MAX_GRID_COLUMNS, 12);
+        $gridRows = validate_grid_count($section['grid_rows'] ?? null, SEATING_MAX_GRID_ROWS, 8);
         $rows = $section['rows'] ?? [];
         if (!is_array($rows)) {
             throw new InvalidArgumentException('Each section must contain a list of rows.');
@@ -142,8 +355,17 @@ function validate_seating_payload(array $sections): array
                 $allSeatNames[$seatKey] = true;
                 $x = filter_var($seat['x'] ?? null, FILTER_VALIDATE_INT);
                 $y = filter_var($seat['y'] ?? null, FILTER_VALIDATE_INT);
-                if ($x === false || $y === false || $x < 20 || $x > 980 || $y < 40 || $y > 560) {
-                    throw new InvalidArgumentException('Seat positions are outside the seating map.');
+                $isGridPosition = $x !== false && $y !== false
+                    && $x >= 1 && $x <= SEATING_MAX_GRID_COLUMNS
+                    && $y >= 1 && $y <= SEATING_MAX_GRID_ROWS;
+                $isLegacyPosition = $x !== false && $y !== false
+                    && $x >= 20 && $x <= 980
+                    && $y >= 40 && $y <= 560;
+                if (!$isGridPosition && !$isLegacyPosition) {
+                    throw new InvalidArgumentException('Seat positions are outside the seating grid.');
+                }
+                if ($isGridPosition && ($x > $gridColumns || $y > $gridRows)) {
+                    throw new InvalidArgumentException('A seat is outside its section box grid.');
                 }
                 $status = (string) ($seat['status'] ?? 'available');
                 if (!in_array($status, ['available', 'blocked', 'locked', 'reserved', 'sold'], true)) {
@@ -172,6 +394,8 @@ function validate_seating_payload(array $sections): array
             'id' => validate_seating_id($section['id'] ?? null),
             'name' => $name,
             'default_price' => $defaultPrice,
+            'grid_columns' => $gridColumns,
+            'grid_rows' => $gridRows,
             'rows' => $normalizedRows,
         ];
     }
@@ -210,9 +434,25 @@ function validate_seating_price(mixed $value, bool $nullable): ?string
     return number_format((float) $price, 2, '.', '');
 }
 
+function validate_grid_count(mixed $value, int $maximum, int $fallback): int
+{
+    if ($value === null || $value === '') {
+        return $fallback;
+    }
+    $count = filter_var($value, FILTER_VALIDATE_INT);
+    if ($count === false || $count < 1 || $count > $maximum) {
+        throw new InvalidArgumentException(
+            'The seat grid must stay within ' . SEATING_MAX_GRID_COLUMNS . ' columns and ' . SEATING_MAX_GRID_ROWS . ' rows.'
+        );
+    }
+
+    return $count;
+}
+
 function save_event_seating(int $eventId, array $sections): void
 {
     $sections = validate_seating_payload($sections);
+    $hasGridSize = event_sections_have_grid_size();
     $connection = db();
     $connection->beginTransaction();
     try {
@@ -255,10 +495,14 @@ function save_event_seating(int $eventId, array $sections): void
         $usedRows = [];
         $usedSeats = [];
         $sectionInsert = $connection->prepare(
-            'INSERT INTO event_sections (event_id, name, default_price, sort_order) VALUES (?, ?, ?, ?)'
+            $hasGridSize
+                ? 'INSERT INTO event_sections (event_id, name, default_price, sort_order, grid_columns, grid_rows) VALUES (?, ?, ?, ?, ?, ?)'
+                : 'INSERT INTO event_sections (event_id, name, default_price, sort_order) VALUES (?, ?, ?, ?)'
         );
         $sectionUpdate = $connection->prepare(
-            'UPDATE event_sections SET name = ?, default_price = ?, sort_order = ? WHERE id = ? AND event_id = ?'
+            $hasGridSize
+                ? 'UPDATE event_sections SET name = ?, default_price = ?, sort_order = ?, grid_columns = ?, grid_rows = ? WHERE id = ? AND event_id = ?'
+                : 'UPDATE event_sections SET name = ?, default_price = ?, sort_order = ? WHERE id = ? AND event_id = ?'
         );
         $rowInsert = $connection->prepare(
             'INSERT INTO event_rows (event_id, section_id, label, sort_order) VALUES (?, ?, ?, ?)'
@@ -275,20 +519,26 @@ function save_event_seating(int $eventId, array $sections): void
 
         foreach ($sections as $sectionIndex => $section) {
             if ($section['id'] === null) {
-                $sectionInsert->execute([$eventId, $section['name'], $section['default_price'], $sectionIndex]);
+                $insertValues = [$eventId, $section['name'], $section['default_price'], $sectionIndex];
+                if ($hasGridSize) {
+                    $insertValues[] = $section['grid_columns'];
+                    $insertValues[] = $section['grid_rows'];
+                }
+                $sectionInsert->execute($insertValues);
                 $sectionId = (int) $connection->lastInsertId();
             } else {
                 $sectionId = $section['id'];
                 if (!isset($existingSections[$sectionId]) || isset($usedSections[$sectionId])) {
                     throw new InvalidArgumentException('The seating section does not belong to this event.');
                 }
-                $sectionUpdate->execute([
-                    $section['name'],
-                    $section['default_price'],
-                    $sectionIndex,
-                    $sectionId,
-                    $eventId,
-                ]);
+                $updateValues = [$section['name'], $section['default_price'], $sectionIndex];
+                if ($hasGridSize) {
+                    $updateValues[] = $section['grid_columns'];
+                    $updateValues[] = $section['grid_rows'];
+                }
+                $updateValues[] = $sectionId;
+                $updateValues[] = $eventId;
+                $sectionUpdate->execute($updateValues);
             }
             $usedSections[$sectionId] = true;
             if (

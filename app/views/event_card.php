@@ -5,7 +5,10 @@ $eventDescription = trim((string) $event['description']);
 ?>
 <article class="feature-card event-card h-100">
     <?php if ($event['poster_filename'] !== null): ?>
-        <img class="event-poster-preview mb-3" src="<?= e(app_url('/event_poster.php?id=' . (int) $event['id'])) ?>" alt="Poster for <?= e((string) $event['title']) ?>">
+        <?php $posterReturn = '/' . basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'events.php')); ?>
+        <a class="poster-launch mb-3" href="<?= e(app_url('/view_event_poster.php?id=' . (int) $event['id'] . '&return=' . rawurlencode($posterReturn))) ?>" data-poster-open data-poster-src="<?= e(app_url('/event_poster.php?id=' . (int) $event['id'])) ?>" data-poster-title="<?= e((string) $event['title']) ?>">
+            <img class="event-poster-preview" src="<?= e(app_url('/event_poster.php?id=' . (int) $event['id'])) ?>" alt="Poster for <?= e((string) $event['title']) ?>. Open to view, then use Back or X to return.">
+        </a>
     <?php endif; ?>
     <p class="eyebrow mb-2"><?= e(format_event_date((string) $event['starts_at'])) ?></p>
     <h2 class="h4"><?= e((string) $event['title']) ?></h2>

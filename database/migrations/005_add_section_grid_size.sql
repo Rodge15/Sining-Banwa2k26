@@ -1,0 +1,3 @@
+ALTER TABLE `event_sections`
+  ADD COLUMN `grid_columns` TINYINT UNSIGNED NULL DEFAULT NULL AFTER `sort_order`,
+  ADD COLUMN `grid_rows` TINYINT UNSIGNED NULL DEFAULT NULL AFTER `grid_columns`;

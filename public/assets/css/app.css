@@ -278,12 +278,54 @@ a.event-card {
     background: rgb(25 20 20 / 72%);
 }
 
-.poster-preview-header {
+.poster-preview-header,
+.poster-page-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
     margin-bottom: 1rem;
+}
+
+.poster-preview-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-bottom: .5rem;
+    background: #fff;
+}
+
+.poster-close-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 999px;
+    background: var(--wine);
+    color: #fff;
+    font-size: 1.8rem;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.poster-close-button:hover,
+.poster-close-button:focus {
+    color: #fff;
+    background: var(--wine-dark);
+}
+
+.poster-launch {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+    text-decoration: none;
 }
 
 .poster-preview-image {
@@ -292,4 +334,157 @@ a.event-card {
     max-height: 72vh;
     margin-inline: auto;
     object-fit: contain;
+}
+
+.seat-status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem 1rem;
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+}
+
+.seat-status-legend li {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+.seat-legend-swatch {
+    width: 1.1rem;
+    min-height: 1.1rem;
+    padding: 0;
+}
+
+.seat-box-board {
+    overflow-x: auto;
+    padding: .75rem;
+    border: 1px solid var(--line);
+    border-radius: .75rem;
+    background: #fbfcfd;
+}
+
+.seat-stage-label {
+    width: min(100%, 18rem);
+    margin: 0 auto .75rem;
+    padding: .35rem .75rem;
+    border-radius: 999px;
+    background: var(--wine);
+    color: #fff;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.seat-box-grid {
+    display: grid;
+    gap: .4rem;
+    min-width: max-content;
+}
+
+.seat-box-row {
+    display: grid;
+    grid-template-columns: 4.5rem repeat(var(--seat-columns), minmax(3.1rem, 1fr));
+    gap: .35rem;
+    align-items: stretch;
+}
+
+.seat-row-label,
+.seat-row-label-input {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 700;
+}
+
+.seat-box {
+    min-height: 3rem;
+    padding: .15rem;
+    border: 2px solid transparent;
+    border-radius: .45rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .05rem;
+    color: #173f2d;
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+}
+
+button.seat-box {
+    width: 100%;
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.seat-box-label,
+.seat-box-meta,
+.seat-box-price {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.seat-box-empty {
+    background: repeating-linear-gradient(45deg, #f7f4f1, #f7f4f1 4px, #efeae6 4px, #efeae6 8px);
+    border: 1px dashed #d5ccc6;
+    color: transparent;
+}
+
+button.seat-box-empty {
+    color: transparent;
+    cursor: pointer;
+}
+
+button.seat-box-empty:hover,
+button.seat-box-empty:focus {
+    border-color: var(--wine);
+    outline: none;
+}
+
+.seat-box-available {
+    background: #d8f3e2;
+    border-color: #1f7a4d;
+}
+
+.seat-box-reserved {
+    background: #ffe0b3;
+    border-color: #c2410c;
+    color: #7c2d12;
+}
+
+.seat-box-sold {
+    background: #d6e6ff;
+    border-color: #1d4e89;
+    color: #163864;
+}
+
+.seat-box-locked {
+    background: #efe4ff;
+    border-color: #6d28d9;
+    color: #4c1d95;
+}
+
+.seat-box-blocked {
+    background: #e5e7eb;
+    border-color: #6b7280;
+    color: #374151;
+}
+
+.seat-box-selected {
+    outline: 3px solid var(--wine);
+    outline-offset: 1px;
 }

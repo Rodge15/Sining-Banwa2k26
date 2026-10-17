@@ -22,30 +22,36 @@ document.addEventListener('DOMContentLoaded', () => {
         status.textContent = 'The saved seat layout has an invalid format.';
         return;
     }
-    let nextSeatSerial = sections.reduce((highest, section) =>
-        section.rows.reduce((rowHighest, row) =>
-            row.seats.reduce((seatHighest, seat) => {
-                const match = /^S([0-9]+)$/i.exec(seat.label);
-                return match ? Math.max(seatHighest, Number(match[1])) : seatHighest;
-            }, rowHighest),
-        highest),
-    0) + 1;
 
+    const maxColumns = 40;
+    const maxRows = 30;
+    const protectedStatuses = ['locked', 'reserved', 'sold'];
     let selectedSeat = null;
-    const svgNamespace = 'http://www.w3.org/2000/svg';
+
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-    const makeInput = (labelText, value, type = 'text', step = null) => {
+    const isProtected = (seat) => protectedStatuses.includes(seat.status);
+    const rowLetter = (rowNumber) => {
+        let label = '';
+        let number = rowNumber;
+        while (number > 0) {
+            number -= 1;
+            label = String.fromCharCode(65 + (number % 26)) + label;
+            number = Math.floor(number / 26);
+        }
+        return label || 'A';
+    };
+    const makeInput = (labelText, value, type = 'text') => {
         const wrapper = document.createElement('label');
         wrapper.className = 'form-label small mb-0';
         wrapper.append(document.createTextNode(labelText));
         const input = document.createElement('input');
         input.className = 'form-control form-control-sm mt-1';
         input.type = type;
-        input.value = value;
+        input.value = value ?? '';
         if (type === 'number') {
             input.min = '0';
             input.max = '99999999.99';
-            input.step = step ?? '0.01';
+            input.step = '0.01';
         }
         wrapper.append(input);
         return { wrapper, input };
@@ -58,15 +64,135 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', onClick);
         return button;
     };
+    const statusMeta = {
+        available: { short: 'Open', className: 'seat-box-available', payment: 'No payment yet' },
+        locked: { short: 'Hold', className: 'seat-box-locked', payment: 'Temporarily held' },
+        reserved: { short: 'Due', className: 'seat-box-reserved', payment: 'Reserved, payment not verified' },
+        sold: { short: 'Paid', className: 'seat-box-sold', payment: 'Payment recorded' },
+        blocked: { short: 'Off', className: 'seat-box-blocked', payment: 'Not for sale' },
+    };
 
-    function makeSection() {
-        return { id: null, name: `Section ${sections.length + 1}`, default_price: '0.00', rows: [] };
+    sections.forEach((section) => {
+        section.grid_columns = clamp(Number(section.grid_columns) || 12, 1, maxColumns);
+        section.grid_rows = clamp(Number(section.grid_rows) || 8, 1, maxRows);
+        section.rows.forEach((row) => {
+            row.seats.forEach((seat) => {
+                seat.column = clamp(Number(seat.column || seat.x) || 1, 1, maxColumns);
+                seat.row = clamp(Number(seat.row || seat.y) || 1, 1, maxRows);
+                section.grid_columns = Math.max(section.grid_columns, seat.column);
+                section.grid_rows = Math.max(section.grid_rows, seat.row);
+            });
+        });
+    });
+
+    function allSeats(section) {
+        return section.rows.flatMap((row) => row.seats);
     }
 
-    function makeSeat(row, rowIndex, seatIndex) {
-        const x = Math.round(180 + ((seatIndex + 1) * 640) / (row.seats.length + 2));
-        const y = Math.min(520, 100 + rowIndex * 75);
-        return { id: null, label: `S${nextSeatSerial++}`, x, y, price_override: null, status: 'available' };
+    function uniqueLabel(section, preferred) {
+        const used = new Set(sections.flatMap((item) => allSeats(item).map((seat) => seat.label.toLowerCase())));
+        if (!used.has(preferred.toLowerCase())) {
+            return preferred.slice(0, 40);
+        }
+        let serial = 2;
+        while (used.has(`${preferred}-${serial}`.toLowerCase())) {
+            serial += 1;
+        }
+        return `${preferred}-${serial}`.slice(0, 40);
+    }
+
+    function uniqueRowLabel(section, preferred) {
+        const used = new Set(section.rows.map((row) => row.label.toLowerCase()));
+        if (!used.has(preferred.toLowerCase())) {
+            return preferred.slice(0, 40);
+        }
+        let serial = 2;
+        let candidate = `${preferred} ${serial}`;
+        while (used.has(candidate.toLowerCase())) {
+            serial += 1;
+            candidate = `${preferred} ${serial}`;
+        }
+        return candidate.slice(0, 40);
+    }
+
+    function suggestedSeatLabel(rowLabel, column) {
+        return /^[A-Z]{1,3}$/.test(rowLabel) ? `${rowLabel}${column}` : `${rowLabel}-${column}`;
+    }
+
+    function ensureRow(section, displayRow) {
+        const existing = section.rows.find((row) => row.displayRow === displayRow || row.seats.some((seat) => seat.row === displayRow));
+        if (existing) {
+            existing.displayRow = displayRow;
+            return existing;
+        }
+        const created = {
+            id: null,
+            label: uniqueRowLabel(section, rowLetter(displayRow)),
+            displayRow,
+            seats: [],
+        };
+        section.rows.push(created);
+        return created;
+    }
+
+    function seatAt(section, column, row) {
+        return allSeats(section).find((seat) => seat.column === column && seat.row === row) ?? null;
+    }
+
+    function makeSection() {
+        return {
+            id: null,
+            name: `Section ${sections.length + 1}`,
+            default_price: '0.00',
+            grid_columns: 12,
+            grid_rows: 8,
+            rows: [],
+        };
+    }
+
+    function resizeGrid(section, columns, rows) {
+        const outside = allSeats(section).filter((seat) => seat.column > columns || seat.row > rows);
+        if (outside.length > 0) {
+            status.textContent = 'Clear the boxes outside the new size first. Locked, reserved, or sold seats cannot be removed.';
+            return false;
+        }
+        section.grid_columns = columns;
+        section.grid_rows = rows;
+        status.textContent = '';
+        return true;
+    }
+
+    function placeSeat(section, column, row) {
+        const rowRecord = ensureRow(section, row);
+        const seat = {
+            id: null,
+            label: uniqueLabel(section, suggestedSeatLabel(rowRecord.label, column)),
+            x: column,
+            y: row,
+            column,
+            row,
+            price_override: null,
+            status: 'available',
+        };
+        rowRecord.seats.push(seat);
+        return seat;
+    }
+
+    function removeSeat(section, seat) {
+        if (isProtected(seat)) {
+            status.textContent = 'Locked, reserved, or sold seats cannot be removed.';
+            return;
+        }
+        section.rows.forEach((row) => {
+            const index = row.seats.indexOf(seat);
+            if (index >= 0) {
+                row.seats.splice(index, 1);
+            }
+        });
+        section.rows = section.rows.filter((row) => row.seats.length > 0);
+        if (selectedSeat?.seat === seat) {
+            selectedSeat = null;
+        }
     }
 
     function updateSeatDetails() {
@@ -79,27 +205,39 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!seat) {
             const hint = document.createElement('p');
             hint.className = 'text-muted small mb-0';
-            hint.textContent = 'Select a seat on the map to edit its label, price override, or availability.';
+            hint.textContent = 'Click an empty box to place a seat, or click a seat to edit its label, price, or availability.';
             detail.append(hint);
             return;
         }
 
-        const protectedSeat = ['locked', 'reserved', 'sold'].includes(seat.status);
+        const protectedSeat = isProtected(seat);
+        const meta = statusMeta[seat.status] ?? statusMeta.blocked;
+        const summary = document.createElement('p');
+        summary.className = 'small mb-2';
+        summary.textContent = `Payment color: ${meta.payment}.`;
+        detail.append(summary);
+
         const label = makeInput('Seat label', seat.label);
         label.input.maxLength = 40;
         label.input.disabled = protectedSeat;
         label.input.addEventListener('input', () => {
             seat.label = label.input.value;
-            const selectedGroup = root.querySelector('.seat-map-seat-selected');
-            selectedGroup?.querySelector('text')?.replaceChildren(document.createTextNode(seat.label.slice(0, 6)));
-            selectedGroup?.setAttribute('aria-label', `Seat ${seat.label}, ${seat.status}`);
+            const selectedLabel = root.querySelector('.seat-box-selected .seat-box-label');
+            if (selectedLabel) {
+                selectedLabel.textContent = seat.label;
+            }
+            const selectedButton = root.querySelector('.seat-box-selected');
+            const meta = statusMeta[seat.status] ?? statusMeta.blocked;
+            selectedButton?.setAttribute('aria-label', `${seat.label}, ${meta.payment}. Click to edit this seat.`);
         });
         detail.append(label.wrapper);
 
         const price = makeInput('Seat price override (leave blank to use section price)', seat.price_override ?? '', 'number');
         price.input.placeholder = 'Use section price';
         price.input.disabled = protectedSeat;
-        price.input.addEventListener('input', () => { seat.price_override = price.input.value === '' ? null : price.input.value; });
+        price.input.addEventListener('input', () => {
+            seat.price_override = price.input.value === '' ? null : price.input.value;
+        });
         detail.append(price.wrapper);
 
         const statusLabel = document.createElement('label');
@@ -114,221 +252,245 @@ document.addEventListener('DOMContentLoaded', () => {
             option.textContent = text;
             statusSelect.append(option);
         });
-        statusSelect.value = seat.status === 'blocked' ? 'blocked' : 'available';
+        if (protectedSeat) {
+            const option = document.createElement('option');
+            option.value = seat.status;
+            option.textContent = meta.payment;
+            statusSelect.append(option);
+        }
+        statusSelect.value = protectedSeat ? seat.status : (seat.status === 'blocked' ? 'blocked' : 'available');
         statusSelect.addEventListener('change', () => {
             seat.status = statusSelect.value;
-            const selectedGroup = root.querySelector('.seat-map-seat-selected');
-            selectedGroup?.classList.toggle('seat-map-seat-blocked', seat.status === 'blocked');
-            selectedGroup?.setAttribute('aria-label', `Seat ${seat.label}, ${seat.status}`);
+            render({ preserveDetails: true });
         });
         statusLabel.append(statusSelect);
         detail.append(statusLabel);
-        const priceText = document.createElement('p');
-        priceText.className = 'text-muted small mb-0';
-        priceText.textContent = protectedSeat
-            ? 'This seat is locked or reserved and cannot be changed.'
-            : 'The override replaces the section default price for this seat.';
-        detail.append(priceText);
+
         if (!protectedSeat) {
-            detail.append(makeButton('Remove seat', 'btn btn-outline-danger btn-sm', () => {
-                const row = sections[ selectedSeat.sectionIndex ]?.rows.find((item) => item.seats.includes(seat));
-                if (!row) {
-                    return;
-                }
-                row.seats.splice(row.seats.indexOf(seat), 1);
-                selectedSeat = null;
+            detail.append(makeButton('Clear this box', 'btn btn-outline-danger btn-sm', () => {
+                const section = sections[selectedSeat.sectionIndex];
+                removeSeat(section, seat);
                 render();
             }));
+        } else {
+            const note = document.createElement('p');
+            note.className = 'text-muted small mb-0';
+            note.textContent = 'This seat is locked, reserved, or sold, so its box cannot be cleared or repriced.';
+            detail.append(note);
         }
     }
 
-    function renderSectionMap(sectionIndex) {
-        const mapHost = root.querySelector(`[data-section-map="${sectionIndex}"]`);
-        if (!(mapHost instanceof HTMLElement)) {
-            return;
-        }
-        const svg = document.createElementNS(svgNamespace, 'svg');
-        svg.setAttribute('viewBox', '0 0 1000 600');
-        svg.setAttribute('role', 'img');
-        svg.setAttribute('aria-label', `Draggable seat map for ${sections[sectionIndex].name}`);
-        const stage = document.createElementNS(svgNamespace, 'rect');
-        stage.setAttribute('x', '20');
-        stage.setAttribute('y', '40');
-        stage.setAttribute('width', '960');
-        stage.setAttribute('height', '520');
-        stage.setAttribute('rx', '18');
-        stage.setAttribute('class', 'seat-map-stage');
-        svg.append(stage);
-
-        const section = sections[sectionIndex];
-        section.rows.forEach((row) => {
-            row.seats.forEach((seat) => {
-                const group = document.createElementNS(svgNamespace, 'g');
-                group.setAttribute('transform', `translate(${seat.x} ${seat.y})`);
-                group.setAttribute('tabindex', '0');
-                group.setAttribute('role', 'button');
-                group.setAttribute('aria-label', `Seat ${seat.label}, ${seat.status}`);
-                group.setAttribute('class', [
-                    'seat-map-seat',
-                    seat.status !== 'available' ? 'seat-map-seat-blocked' : '',
-                    selectedSeat?.seat === seat ? 'seat-map-seat-selected' : '',
-                ].filter(Boolean).join(' '));
-                const circle = document.createElementNS(svgNamespace, 'circle');
-                circle.setAttribute('r', '22');
-                const text = document.createElementNS(svgNamespace, 'text');
-                text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('dy', '5');
-                text.textContent = seat.label.slice(0, 6);
-                group.append(circle, text);
-                const choose = () => {
-                    selectedSeat = { seat, sectionIndex };
-                    root.querySelectorAll('.seat-map-seat-selected').forEach((item) => {
-                        item.classList.remove('seat-map-seat-selected');
-                    });
-                    group.classList.add('seat-map-seat-selected');
-                    updateSeatDetails();
-                };
-                group.addEventListener('click', choose);
-                group.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        choose();
-                    }
-                });
-                group.addEventListener('pointerdown', (event) => {
-                    if (event.button !== 0) {
-                        return;
-                    }
-                    choose();
-                    group.setPointerCapture(event.pointerId);
-                });
-                group.addEventListener('pointermove', (event) => {
-                    if (!group.hasPointerCapture(event.pointerId)) {
-                        return;
-                    }
-                    const point = svg.createSVGPoint();
-                    point.x = event.clientX;
-                    point.y = event.clientY;
-                    const local = point.matrixTransform(svg.getScreenCTM().inverse());
-                    seat.x = Math.round(clamp(local.x, 20, 980));
-                    seat.y = Math.round(clamp(local.y, 40, 560));
-                    group.setAttribute('transform', `translate(${seat.x} ${seat.y})`);
-                });
-                group.addEventListener('pointerup', (event) => {
-                    if (group.hasPointerCapture(event.pointerId)) {
-                        group.releasePointerCapture(event.pointerId);
-                    }
-                });
-                svg.append(group);
-            });
-        });
-        mapHost.replaceChildren(svg);
-    }
-
-    function render() {
+    function render({ preserveDetails = false } = {}) {
+        const activeElement = document.activeElement;
+        const focusKey = activeElement instanceof HTMLElement ? activeElement.dataset.focusKey ?? '' : '';
         sectionsHost.replaceChildren();
         sections.forEach((section, sectionIndex) => {
             const card = document.createElement('section');
             card.className = 'panel mb-4';
-            const top = document.createElement('div');
-            top.className = 'd-flex flex-column flex-lg-row gap-3 justify-content-between align-items-lg-end mb-3';
             const fields = document.createElement('div');
-            fields.className = 'row g-3 flex-grow-1';
+            fields.className = 'row g-3 mb-3';
+
             const sectionName = makeInput('Section name', section.name);
             sectionName.input.maxLength = 100;
+            sectionName.input.dataset.focusKey = `section-name-${sectionIndex}`;
             sectionName.input.addEventListener('input', () => { section.name = sectionName.input.value; });
             const nameColumn = document.createElement('div');
-            nameColumn.className = 'col-sm-6';
+            nameColumn.className = 'col-md-6';
             nameColumn.append(sectionName.wrapper);
+
             const sectionPrice = makeInput('Default price (PHP)', section.default_price, 'number');
+            sectionPrice.input.dataset.focusKey = `section-price-${sectionIndex}`;
             sectionPrice.input.addEventListener('input', () => { section.default_price = sectionPrice.input.value; });
             const priceColumn = document.createElement('div');
-            priceColumn.className = 'col-sm-6';
+            priceColumn.className = 'col-md-6';
             priceColumn.append(sectionPrice.wrapper);
-            fields.append(nameColumn, priceColumn);
+
+            const columnCount = makeInput('Columns', String(section.grid_columns), 'number');
+            columnCount.input.min = '1';
+            columnCount.input.max = String(maxColumns);
+            columnCount.input.step = '1';
+            columnCount.input.dataset.focusKey = `grid-columns-${sectionIndex}`;
+            columnCount.input.addEventListener('change', () => {
+                const next = clamp(Number(columnCount.input.value) || section.grid_columns, 1, maxColumns);
+                if (!resizeGrid(section, next, section.grid_rows)) {
+                    columnCount.input.value = String(section.grid_columns);
+                    return;
+                }
+                render();
+            });
+            const columnWrap = document.createElement('div');
+            columnWrap.className = 'col-6 col-md-3';
+            columnWrap.append(columnCount.wrapper);
+
+            const rowCount = makeInput('Rows', String(section.grid_rows), 'number');
+            rowCount.input.min = '1';
+            rowCount.input.max = String(maxRows);
+            rowCount.input.step = '1';
+            rowCount.input.dataset.focusKey = `grid-rows-${sectionIndex}`;
+            rowCount.input.addEventListener('change', () => {
+                const next = clamp(Number(rowCount.input.value) || section.grid_rows, 1, maxRows);
+                if (!resizeGrid(section, section.grid_columns, next)) {
+                    rowCount.input.value = String(section.grid_rows);
+                    return;
+                }
+                render();
+            });
+            const rowWrap = document.createElement('div');
+            rowWrap.className = 'col-6 col-md-3';
+            rowWrap.append(rowCount.wrapper);
+            fields.append(nameColumn, priceColumn, columnWrap, rowWrap);
+
             const actions = document.createElement('div');
-            actions.className = 'd-flex gap-2';
+            actions.className = 'd-flex flex-wrap gap-2 mb-3';
             actions.append(
-                makeButton('Add row', 'btn btn-outline-primary btn-sm', () => {
-                    section.rows.push({ id: null, label: `Row ${section.rows.length + 1}`, seats: [] });
+                makeButton('Fill empty boxes', 'btn btn-outline-primary btn-sm', () => {
+                    for (let row = 1; row <= section.grid_rows; row += 1) {
+                        for (let column = 1; column <= section.grid_columns; column += 1) {
+                            if (!seatAt(section, column, row)) {
+                                placeSeat(section, column, row);
+                            }
+                        }
+                    }
                     render();
                 }),
                 makeButton('Remove section', 'btn btn-outline-danger btn-sm', () => {
-                    const hasProtectedSeats = section.rows.some((row) =>
-                        row.seats.some((seat) => ['locked', 'reserved', 'sold'].includes(seat.status)),
-                    );
-                    if (hasProtectedSeats) {
+                    if (allSeats(section).some(isProtected)) {
                         status.textContent = 'A section with locked, reserved, or sold seats cannot be removed.';
                         return;
                     }
                     sections.splice(sectionIndex, 1);
                     selectedSeat = null;
                     render();
-                    updateSeatDetails();
                 }),
             );
-            top.append(fields, actions);
-            const mapHost = document.createElement('div');
-            mapHost.className = 'seat-map-wrap mb-3';
-            mapHost.dataset.sectionMap = String(sectionIndex);
-            card.append(top, mapHost);
 
-            section.rows.forEach((row, rowIndex) => {
-                const rowPanel = document.createElement('div');
-                rowPanel.className = 'seat-row-controls border-top pt-3 mt-3';
-                const rowHeader = document.createElement('div');
-                rowHeader.className = 'd-flex flex-column flex-sm-row gap-2 align-items-sm-end';
-                const rowLabel = makeInput('Row label', row.label);
-                rowLabel.input.maxLength = 40;
-                rowLabel.input.addEventListener('input', () => { row.label = rowLabel.input.value; });
-                const rowLabelWrap = document.createElement('div');
-                rowLabelWrap.className = 'flex-grow-1';
-                rowLabelWrap.append(rowLabel.wrapper);
-                const rowActions = document.createElement('div');
-                rowActions.className = 'd-flex gap-2';
-                rowActions.append(
-                    makeButton('Add seat', 'btn btn-outline-primary btn-sm', () => {
-                        const seat = makeSeat(row, rowIndex, row.seats.length);
-                        row.seats.push(seat);
-                        selectedSeat = { seat, sectionIndex };
-                        render();
-                        updateSeatDetails();
-                    }),
-                    makeButton('Remove row', 'btn btn-outline-danger btn-sm', () => {
-                        if (row.seats.some((seat) => ['locked', 'reserved', 'sold'].includes(seat.status))) {
-                            status.textContent = 'A row with locked, reserved, or sold seats cannot be removed.';
-                            return;
+            const board = document.createElement('div');
+            board.className = 'seat-box-board';
+            const stage = document.createElement('div');
+            stage.className = 'seat-stage-label';
+            stage.textContent = 'Stage';
+            const grid = document.createElement('div');
+            grid.className = 'seat-box-grid';
+            grid.setAttribute('role', 'group');
+            grid.setAttribute('aria-label', `Seat boxes for ${section.name}`);
+
+            for (let row = 1; row <= section.grid_rows; row += 1) {
+                const rowRecord = section.rows.find((item) => item.seats.some((seat) => seat.row === row));
+                const line = document.createElement('div');
+                line.className = 'seat-box-row';
+                line.style.setProperty('--seat-columns', String(section.grid_columns));
+                const rowLabel = document.createElement('input');
+                rowLabel.className = 'form-control form-control-sm seat-row-label-input';
+                rowLabel.maxLength = 40;
+                rowLabel.value = rowRecord?.label || rowLetter(row);
+                rowLabel.setAttribute('aria-label', `Label for row ${row}`);
+                rowLabel.disabled = rowRecord ? rowRecord.seats.some(isProtected) : false;
+                rowLabel.addEventListener('change', () => {
+                    const target = ensureRow(section, row);
+                    if (target.seats.some(isProtected)) {
+                        status.textContent = 'A row containing locked, reserved, or sold seats cannot be renamed.';
+                        rowLabel.value = target.label;
+                        return;
+                    }
+                    const nextLabel = rowLabel.value.trim();
+                    if (nextLabel === '') {
+                        rowLabel.value = target.label;
+                        return;
+                    }
+                    target.label = uniqueRowLabel(
+                        { rows: section.rows.filter((item) => item !== target) },
+                        nextLabel,
+                    );
+                    target.seats.forEach((seat) => {
+                        if (!seat.id && /^[A-Z]{1,3}\d+$/.test(seat.label)) {
+                            seat.label = uniqueLabel(section, suggestedSeatLabel(target.label, seat.column));
                         }
-                        row.seats.forEach((seat) => {
-                            if (selectedSeat?.seat === seat) {
-                                selectedSeat = null;
-                            }
-                        });
-                        section.rows.splice(rowIndex, 1);
-                        render();
-                        updateSeatDetails();
-                    }),
-                );
-                rowHeader.append(rowLabelWrap, rowActions);
-                rowPanel.append(rowHeader);
-                card.append(rowPanel);
-            });
+                    });
+                    render();
+                });
+                line.append(rowLabel);
 
+                for (let column = 1; column <= section.grid_columns; column += 1) {
+                    const seat = seatAt(section, column, row);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    if (!seat) {
+                        button.className = 'seat-box seat-box-empty';
+                        button.setAttribute('aria-label', `Empty box, row ${row}, column ${column}. Click to place a seat.`);
+                        button.addEventListener('click', () => {
+                            selectedSeat = { seat: placeSeat(section, column, row), sectionIndex };
+                            status.textContent = '';
+                            render();
+                        });
+                    } else {
+                        const meta = statusMeta[seat.status] ?? statusMeta.blocked;
+                        const selected = selectedSeat?.seat === seat;
+                        button.className = ['seat-box', meta.className, selected ? 'seat-box-selected' : ''].filter(Boolean).join(' ');
+                        button.setAttribute('aria-pressed', String(selected));
+                        button.setAttribute('aria-label', `${seat.label}, ${meta.payment}. Click to edit this seat.`);
+                        const label = document.createElement('span');
+                        label.className = 'seat-box-label';
+                        label.textContent = seat.label;
+                        const payment = document.createElement('span');
+                        payment.className = 'seat-box-meta';
+                        payment.textContent = meta.short;
+                        button.append(label, payment);
+                        button.addEventListener('click', () => {
+                            selectedSeat = { seat, sectionIndex };
+                            status.textContent = '';
+                            render();
+                        });
+                    }
+                    line.append(button);
+                }
+                grid.append(line);
+            }
+            board.append(stage, grid);
+            card.append(fields, actions, board);
             sectionsHost.append(card);
-            renderSectionMap(sectionIndex);
         });
 
         const editor = document.createElement('section');
         editor.className = 'panel';
         const heading = document.createElement('h2');
         heading.className = 'h5';
-        heading.textContent = 'Selected seat';
+        heading.textContent = 'Selected box';
         const details = document.createElement('div');
         details.className = 'seat-details-grid';
         details.dataset.seatDetails = '';
         editor.append(heading, details);
         sectionsHost.append(editor);
         updateSeatDetails();
+        if (!preserveDetails && focusKey !== '') {
+            const nextFocus = sectionsHost.querySelector(`[data-focus-key="${focusKey}"]`);
+            if (nextFocus instanceof HTMLElement) {
+                nextFocus.focus();
+            }
+        }
+    }
+
+    function sectionsForSave() {
+        return sections.map((section) => ({
+            id: section.id,
+            name: section.name,
+            default_price: section.default_price,
+            grid_columns: section.grid_columns,
+            grid_rows: section.grid_rows,
+            rows: section.rows
+                .map((row) => ({
+                    id: row.id,
+                    label: row.label,
+                    seats: row.seats.map((seat) => ({
+                        id: seat.id,
+                        label: seat.label.trim(),
+                        x: isProtected(seat) ? seat.x : seat.column,
+                        y: isProtected(seat) ? seat.y : seat.row,
+                        price_override: seat.price_override,
+                        status: seat.status,
+                    })),
+                }))
+                .filter((row) => row.seats.length > 0),
+        }));
     }
 
     root.querySelector('[data-add-section]')?.addEventListener('click', () => {
@@ -346,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     event_id: Number(new URLSearchParams(window.location.search).get('event_id')),
-                    sections,
+                    sections: sectionsForSave(),
                 }),
             });
             const result = await response.json();

@@ -27,7 +27,7 @@ require PROJECT_ROOT . '/app/views/header.php';
         <div>
             <p class="eyebrow mb-2">Seat layout and pricing</p>
             <h1 class="display-6 mb-1"><?= e((string) $event['title']) ?></h1>
-            <p class="text-muted mb-0">Arrange seats by dragging them. Seat positions, section prices, and overrides are saved for this event.</p>
+            <p class="text-muted mb-0">Click boxes to place seats. Colors show whether a seat is open, awaiting payment, paid, on hold, or blocked.</p>
         </div>
         <a class="btn btn-outline-secondary" href="<?= e(app_url('/manage_event.php?id=' . (int) $event['id'])) ?>">Back to event</a>
     </div>
@@ -35,7 +35,8 @@ require PROJECT_ROOT . '/app/views/header.php';
          data-save-url="<?= e(app_url('/save_event_seating.php')) ?>"
          data-csrf="<?= e(csrf_token()) ?>"
          data-initial="<?= e((string) json_encode($sections, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR)) ?>">
-        <div class="alert alert-info" role="status">Create sections, rows, and seats. The section price is the default; set a seat override only when that seat has a different price.</div>
+        <div class="alert alert-info" role="status">Set the number of rows and columns, then click a box to make it a seat. Empty boxes stay as aisles or unused space. The section price is the default; set a seat override only when that seat has a different price.</div>
+        <?php require PROJECT_ROOT . '/app/views/seat_status_legend.php'; ?>
         <div class="d-flex flex-wrap gap-2 mb-3">
             <button class="btn btn-outline-primary" type="button" data-add-section>Add section</button>
             <button class="btn btn-primary" type="button" data-save-layout>Save seat layout</button>

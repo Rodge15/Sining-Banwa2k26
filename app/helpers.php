@@ -54,3 +54,16 @@ function take_flash(): ?array
     unset($_SESSION['_flash']);
     return is_array($flash) ? $flash : null;
 }
+
+function safe_poster_return(?string $return): string
+{
+    $return = str_replace('\\', '/', (string) $return);
+    if (preg_match('#\A/(?:index|events|manage_events)\.php\z#', $return) === 1) {
+        return $return;
+    }
+    if (preg_match('#\A/(?:event|manage_event)\.php\?id=[1-9][0-9]{0,17}\z#', $return) === 1) {
+        return $return;
+    }
+
+    return '/events.php';
+}
