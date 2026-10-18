@@ -1,6 +1,11 @@
 <?php
 require_once dirname(__DIR__) . '/app/bootstrap.php';
 
+if (env_value('APP_ENV') === 'production' || env_value('VERCEL') === '1') {
+    http_response_code(404);
+    exit;
+}
+
 $connected = false;
 try {
     db();
@@ -31,7 +36,7 @@ header('Content-Type: text/html; charset=UTF-8');
         <?php else: ?>
             <p class="eyebrow">Connection test</p>
             <h1 class="h3">Database connection failed</h1>
-            <p class="mb-0">Check your .env settings and make sure MySQL is running. Technical details were saved to the private application log when logging is available.</p>
+            <p class="mb-0">Check your .env settings and make sure the configured database is running. Technical details were saved to the private application log when logging is available.</p>
         <?php endif; ?>
         <a class="btn btn-primary mt-4" href="<?= e(app_url('/index.php')) ?>">Return to homepage</a>
     </section>

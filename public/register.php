@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_flash('success', 'Your customer account has been created. You can now sign in.');
             redirect('/login.php');
         } catch (PDOException $error) {
-            if ($error->getCode() === '23000' && (int) ($error->errorInfo[1] ?? 0) === 1062) {
+            if (is_unique_violation($error)) {
                 $errors[] = 'An account with that email address already exists.';
             } else {
                 throw $error;

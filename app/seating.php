@@ -11,7 +11,15 @@ function event_sections_have_grid_size(): bool
 {
     static $hasGridSize = null;
     if ($hasGridSize === null) {
-        $statement = db()->query("SHOW COLUMNS FROM `event_sections` LIKE 'grid_columns'");
+        if (db_driver() === 'pgsql') {
+            $statement = db()->prepare(
+                'SELECT 1 FROM information_schema.columns '
+                . 'WHERE table_schema = current_schema() AND table_name = :table_name AND column_name = :column_name'
+            );
+            $statement->execute(['table_name' => 'event_sections', 'column_name' => 'grid_columns']);
+        } else {
+            $statement = db()->query("SHOW COLUMNS FROM `event_sections` LIKE 'grid_columns'");
+        }
         $hasGridSize = $statement->fetch() !== false;
     }
 
@@ -525,7 +533,7 @@ function save_event_seating(int $eventId, array $sections): void
                     $insertValues[] = $section['grid_rows'];
                 }
                 $sectionInsert->execute($insertValues);
-                $sectionId = (int) $connection->lastInsertId();
+                $sectionId = db_last_insert_id($connection);
             } else {
                 $sectionId = $section['id'];
                 if (!isset($existingSections[$sectionId]) || isset($usedSections[$sectionId])) {
@@ -561,7 +569,7 @@ function save_event_seating(int $eventId, array $sections): void
             foreach ($section['rows'] as $rowIndex => $row) {
                 if ($row['id'] === null) {
                     $rowInsert->execute([$eventId, $sectionId, $row['label'], $rowIndex]);
-                    $rowId = (int) $connection->lastInsertId();
+                    $rowId = db_last_insert_id($connection);
                 } else {
                     $rowId = $row['id'];
                     if (
@@ -597,7 +605,7 @@ function save_event_seating(int $eventId, array $sections): void
                             $seat['status'],
                             $seatIndex,
                         ]);
-                        $seatId = (int) $connection->lastInsertId();
+                        $seatId = db_last_insert_id($connection);
                     } else {
                         $seatId = $seat['id'];
                         if (

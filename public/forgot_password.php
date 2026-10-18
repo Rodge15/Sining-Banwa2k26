@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/auth.php';
+require_once PROJECT_ROOT . '/app/mail.php';
 redirect_authenticated_user();
 
 $email = '';
@@ -38,17 +39,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $token = bin2hex(random_bytes(32));
                     $tokenHash = hash('sha256', $token);
+                    $expiresAt = (new DateTimeImmutable('now'))->modify('+1 hour')->format('Y-m-d H:i:s');
                     $connection = db();
                     $connection->beginTransaction();
                     $delete = $connection->prepare('DELETE FROM password_reset_tokens WHERE user_id = :user_id');
                     $delete->execute(['user_id' => (int) $account['id']]);
                     $insert = $connection->prepare(
                         'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) '
-                        . 'VALUES (:user_id, :token_hash, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 HOUR))'
+                        . 'VALUES (:user_id, :token_hash, :expires_at)'
                     );
                     $insert->execute([
                         'user_id' => (int) $account['id'],
                         'token_hash' => $tokenHash,
+                        'expires_at' => $expiresAt,
                     ]);
                     $connection->commit();
 
@@ -58,10 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         . "Use this link within one hour to choose a new password:\n"
                         . $resetUrl . "\n\n"
                         . "If you did not request this, you can ignore this email.";
-                    $headers = 'From: ' . sprintf('"%s" <%s>', addcslashes($fromName, "\\\""), $fromEmail)
-                        . "\r\nContent-Type: text/plain; charset=UTF-8\r\n";
-                    if (!mail((string) $account['email'], $subject, $body, $headers)) {
-                        log_application_error(new RuntimeException('Password reset email could not be sent. Check the PHP mail transport configuration.'));
+                    if (!send_account_email((string) $account['email'], $subject, $body, $fromEmail, $fromName)) {
+                        log_application_error(new RuntimeException('Password reset email could not be sent. Check the mail transport configuration.'));
                     }
                 }
             }

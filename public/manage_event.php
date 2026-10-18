@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'status' => $normalizedValues['status'],
                         'created_by' => $user['id'],
                     ]);
-                    $createdEventId = (int) db()->lastInsertId();
+                    $createdEventId = db_last_insert_id(db());
                     set_flash('success', 'Event created.');
                 } else {
                     $statement = db()->prepare(

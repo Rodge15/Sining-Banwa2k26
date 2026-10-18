@@ -94,7 +94,7 @@ try {
     ]);
     fwrite(STDOUT, sprintf("%s account created for %s.\n", ucfirst($role), $email));
 } catch (PDOException $error) {
-    if ($error->getCode() === '23000' && (int) ($error->errorInfo[1] ?? 0) === 1062) {
+    if (is_unique_violation($error)) {
         fwrite(STDERR, "An account with that email address already exists.\n");
         exit(1);
     }

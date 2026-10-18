@@ -13,6 +13,7 @@ Phase 2 adds event creation and management for administrators and staff, optiona
 - PHP 8 (plain PHP), PDO, and MySQL/MariaDB
 - HTML5, CSS3, vanilla JavaScript, and Bootstrap 5
 - XAMPP Apache and MySQL for local development
+- Optional Vercel and Supabase deployment; see [DEPLOY.md](DEPLOY.md)
 - Composer project metadata; no external PHP packages are needed yet
 
 Bootstrap 5 is loaded from jsDelivr, so its framework stylesheet and responsive navigation need an internet connection. The custom stylesheet remains local.
@@ -29,6 +30,8 @@ Bootstrap 5 is loaded from jsDelivr, so its framework stylesheet and responsive 
 app/                    PHP bootstrap, auth helpers, and shared views (not public)
 config/                 Database connection configuration (not public)
 database/               Manual database creation SQL and migrations (not public)
+database/supabase/      Paste-ready Supabase schema; do not run it on local MySQL
+DEPLOY.md               Manual Supabase and Vercel steps
 public/                 Web entry point, auth pages, CSS, and JavaScript
 storage/logs/            Private application diagnostics
 tools/                  Command-line account provisioning utility
@@ -206,6 +209,10 @@ Check `AllowOverride` for the XAMPP `htdocs` directory and confirm Apache is con
 ### The homepage loads but auth fails
 
 Confirm that you created the `users` table by running `database/migrations/001_create_users.sql`, then inspect `storage/logs/app.log` for local diagnostics. Do not copy the log into a public folder or share it if it contains system details.
+
+## Deploying online
+
+Keep using the XAMPP steps above for local work. To publish the same app on Vercel with a Supabase database, follow [DEPLOY.md](DEPLOY.md). Do not run `database/supabase/schema.sql` against the local MySQL database.
 
 ## Security and deployment notes
 

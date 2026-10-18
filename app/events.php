@@ -102,6 +102,16 @@ function store_event_poster(array $upload): string
         throw new InvalidArgumentException('The poster must be a valid JPG, PNG, or WebP image.');
     }
 
+    $filename = bin2hex(random_bytes(16)) . '.' . $extensionByMime[$mimeType];
+    if (storage_driver() === 'supabase') {
+        $bytes = file_get_contents($temporaryPath);
+        if ($bytes === false) {
+            throw new RuntimeException('Could not read the uploaded event poster.');
+        }
+        store_poster_bytes($filename, $bytes, $mimeType);
+        return $filename;
+    }
+
     $directory = PROJECT_ROOT . '/uploads/events';
     if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) {
         throw new RuntimeException('Could not create the private event poster directory.');
@@ -109,8 +119,6 @@ function store_event_poster(array $upload): string
     if (!is_writable($directory)) {
         throw new RuntimeException('The private event poster directory is not writable.');
     }
-
-    $filename = bin2hex(random_bytes(16)) . '.' . $extensionByMime[$mimeType];
     if (!move_uploaded_file($temporaryPath, $directory . '/' . $filename)) {
         throw new RuntimeException('Could not store the uploaded event poster.');
     }
@@ -121,6 +129,15 @@ function store_event_poster(array $upload): string
 function delete_event_poster(?string $filename): void
 {
     if ($filename === null || preg_match('/^[a-f0-9]{32}\.(jpg|png|webp)$/D', $filename) !== 1) {
+        return;
+    }
+
+    if (storage_driver() === 'supabase') {
+        try {
+            delete_poster_object($filename);
+        } catch (RuntimeException $error) {
+            log_application_error(new RuntimeException('Could not remove replaced event poster: ' . $filename, 0, $error));
+        }
         return;
     }
 
